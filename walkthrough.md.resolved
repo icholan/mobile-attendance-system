@@ -1,0 +1,78 @@
+# Face Recognition Mobile App — Walkthrough
+
+## What Was Built
+
+A cross-platform **React Native (Expo)** mobile app with a **Node.js backend** for face registration and attendance marking via face recognition.
+
+### Project Structure
+
+```
+face-recognition/
+├── server/                    # Backend API
+│   ├── server.js              # Express server with face-api.js
+│   ├── download-models.js     # Model downloader script
+│   ├── models/                # Pre-trained face-api.js models (downloaded)
+│   ├── data/                  # JSON stores (faces.json, attendance.json)
+│   └── package.json
+└── mobile/                    # React Native Expo app
+    ├── App.js                 # Navigation setup
+    ├── app.json               # Expo config with camera permissions
+    ├── src/
+    │   ├── config.js          # API URL configuration
+    │   └── screens/
+    │       ├── HomeScreen.js       # Landing page with gradient cards
+    │       ├── RegisterScreen.js   # Camera + name input → register face
+    │       └── AttendanceScreen.js # Camera → scan face → mark attendance
+    └── package.json
+```
+
+### Key Features
+
+| Feature | Flow |
+|---------|------|
+| **Face Registration** | Enter name → capture face photo → sends base64 to `POST /api/register` → server extracts face descriptor → stores in `faces.json` |
+| **Mark Attendance** | Capture face photo → sends base64 to `POST /api/attendance` → server matches against registered faces → returns name + confidence |
+| **Success Sound** | Plays a beep when attendance is successfully matched |
+| **Face Guide Overlay** | Corner markers on camera to help position face correctly |
+
+---
+
+## Verification
+
+- ✅ **iOS bundle compiled successfully** — 831 modules, 0 errors, 5.4s build time
+- ✅ **Face-api.js models downloaded** — 8 model files in `server/models/`
+- ✅ **Backend dependencies installed** — Express, face-api.js, @napi-rs/canvas, TF.js
+- ✅ **Mobile dependencies installed** — expo-camera, react-navigation, expo-av
+
+---
+
+## How to Run
+
+### 1. Start the Backend Server
+```bash
+cd server
+node server.js
+```
+Server runs on `http://localhost:3000`. You should see:
+```
+✅ Models loaded successfully!
+🚀 Face Recognition Server running on http://0.0.0.0:3000
+```
+
+### 2. Start the Mobile App
+```bash
+cd mobile
+npx expo start
+```
+
+### 3. Test on Device
+- **iOS Simulator**: Press `i` in the Expo terminal
+- **Physical Device**: Install **Expo Go** app, scan the QR code
+- **Android Emulator**: Press `a` in the Expo terminal
+
+> [!IMPORTANT]
+> **Physical device?** Update `src/config.js` with your Mac's local IP address:
+> ```js
+> return 'http://192.168.x.x:3000';
+> ```
+> Find your IP with: `ifconfig | grep "inet " | grep -v 127.0.0.1`

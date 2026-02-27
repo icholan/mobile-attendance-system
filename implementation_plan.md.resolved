@@ -1,0 +1,123 @@
+# Face Recognition Mobile App — Implementation Plan
+
+A cross-platform (iOS & Android) mobile app that lets users **register faces** and **mark attendance via face recognition**. The app captures face data on-device and sends it to a backend API for storage and matching.
+
+## Architecture Overview
+
+```mermaid
+flowchart LR
+    subgraph Mobile["📱 React Native App"]
+        CAM[Camera + Face Detection]
+        REG[Face Registration Screen]
+        ATT[Mark Attendance Screen]
+    end
+    subgraph Server["🖥️ Node.js Backend"]
+        API[Express API]
+        FACE[face-api.js Engine]
+        DB[(JSON File Store)]
+    end
+    REG -->|POST face descriptor + name| API
+    ATT -->|POST face descriptor| API
+    API --> FACE
+    FACE --> DB
+```
+
+### Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| Mobile | **React Native (Expo)** | Cross-platform, fast dev cycle |
+| Camera | **expo-camera** | Easy camera access with Expo |
+| Face Detection (device) | **Expo FaceDetector** | On-device face detection for framing |
+| Backend | **Node.js + Express** | Lightweight, easy to deploy |
+| Face Recognition | **face-api.js** | Server-side face descriptor matching |
+| Data Store | **JSON file** | Simple, no DB setup required |
+
+---
+
+## Proposed Changes
+
+### Backend API Server
+
+#### [NEW] [server/package.json](file:///Users/cholan/MyProjects/MobieApp/face-recognition/server/package.json)
+- Dependencies: `express`, `cors`, `multer`, `face-api.js`, `canvas`, `@tensorflow/tfjs-node`
+
+#### [NEW] [server/server.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/server/server.js)
+- Express server with two main endpoints:
+  - **`POST /api/register`** — Receives `{ name, image (base64) }`, extracts face descriptor via face-api.js, stores in `faces.json`
+  - **`POST /api/attendance`** — Receives `{ image (base64) }`, extracts face descriptor, compares against all registered faces, returns match result
+- Face-api.js models loaded at startup from `server/models/` directory
+- Euclidean distance threshold of `0.6` for face matching
+
+#### [NEW] [server/models/](file:///Users/cholan/MyProjects/MobieApp/face-recognition/server/models/)
+- Pre-trained face-api.js models (SSD MobileNet, Face Landmark, Face Recognition)
+- Downloaded during setup
+
+---
+
+### React Native Mobile App
+
+#### [NEW] [app.json](file:///Users/cholan/MyProjects/MobieApp/face-recognition/app.json)
+- Expo project config with camera permissions for iOS and Android
+
+#### [NEW] [package.json](file:///Users/cholan/MyProjects/MobieApp/face-recognition/package.json)
+- Dependencies: `expo`, `expo-camera`, `expo-face-detector`, `react-navigation`, `expo-linear-gradient`
+
+#### [NEW] [App.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/App.js)
+- Root component with React Navigation stack navigator
+- Three screens: Home, Register Face, Mark Attendance
+
+#### [NEW] [src/screens/HomeScreen.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/src/screens/HomeScreen.js)
+- Landing screen with two large buttons:
+  - 📝 **Register Face** → navigates to registration
+  - ✅ **Mark Attendance** → navigates to attendance
+- Modern dark theme with gradient background
+
+#### [NEW] [src/screens/RegisterScreen.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/src/screens/RegisterScreen.js)
+- Text input for person's **name**
+- Camera preview with real-time face detection overlay (bounding box)
+- **Capture** button (enabled only when a face is detected)
+- On capture: takes photo → converts to base64 → `POST /api/register` with name + image
+- Shows success/error feedback
+
+#### [NEW] [src/screens/AttendanceScreen.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/src/screens/AttendanceScreen.js)
+- Camera preview with face detection overlay
+- **Scan Face** button (enabled only when face detected)
+- On capture: takes photo → converts to base64 → `POST /api/attendance`
+- Shows result: ✅ "Attendance marked for [Name]" or ❌ "Face not recognized"
+- Plays success beep sound on match
+
+#### [NEW] [src/config.js](file:///Users/cholan/MyProjects/MobieApp/face-recognition/src/config.js)
+- API base URL configuration (easily switchable between dev/prod)
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Backend runs locally** — The server will run on your local machine. When testing on a physical device, you'll need to use your machine's local IP address instead of `localhost`. I'll configure this automatically.
+
+> [!NOTE]
+> **Face-api.js models** (~6MB) need to be downloaded to `server/models/`. I'll handle this during setup by fetching them from the official repository.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- **Server API test**: `curl` commands to test both `/api/register` and `/api/attendance` endpoints after starting the server
+
+### Manual Verification (Simulator/Device)
+1. Start the backend: `cd server && node server.js`
+2. Start the Expo app: `npx expo start`
+3. **Test Registration**:
+   - Open the app → tap "Register Face"
+   - Enter a name → point camera at a face → tap Capture
+   - Verify server responds with success and face is stored
+4. **Test Attendance**:
+   - Tap "Mark Attendance" → point camera at the same face → tap Scan
+   - Verify server matches the face and returns the registered name
+   - Verify UI shows "Attendance marked for [Name]"
+5. **Test Unknown Face**:
+   - Point camera at an unregistered face → tap Scan
+   - Verify UI shows "Face not recognized"
